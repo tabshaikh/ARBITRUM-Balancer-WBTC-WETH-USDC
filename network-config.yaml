@@ -1,0 +1,27 @@
+live:
+  - name: Arbitrum
+    networks:
+      - name: Mainnet
+        chainid: 42161
+        id: arbitrum-main-og
+        host: https://arb1.arbitrum.io/rpc
+        explorer:  https://api.arbiscan.io/api
+      - name: Testnet
+        chainid: 421611
+        id: arbitrum-test-1
+        host: https://rinkeby.arbitrum.io/rpc
+        explorer: https://rinkeby-explorer.arbitrum.io
+
+development:
+  - name: Ganache-CLI (Arbitrum-Mainnet Fork)
+    id: arbitrum-main-fork-1
+    cmd: ganache-cli
+    host: http://127.0.0.1
+    timeout: 120
+    cmd_settings:
+      port: 8545
+      gas_limit: 20000000
+      accounts: 10
+      evm_version: istanbul
+      mnemonic: brownie
+      fork: arbitrum-main-og
