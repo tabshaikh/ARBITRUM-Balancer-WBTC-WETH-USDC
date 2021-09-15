@@ -10,6 +10,8 @@ import "../deps/@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol
 import "../deps/@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 
 import "../interfaces/badger/IController.sol";
+import {IVault} from "../interfaces/balancer/IVault.sol";
+import "../interfaces/balancer/IAsset.sol";
 
 import {BaseStrategy} from "../deps/BaseStrategy.sol";
 
@@ -18,9 +20,18 @@ contract MyStrategy is BaseStrategy {
     using AddressUpgradeable for address;
     using SafeMathUpgradeable for uint256;
 
-    // address public want // Inherited from BaseStrategy, the token the strategy wants, swaps into and tries to grow
     address public lpComponent; // Token we provide liquidity with
     address public reward; // Token we farm and swap to want / lpComponent
+
+    uint256 totalDepositedinPool = 0; // tracking total wbtc deposited in the pool
+
+    address public constant VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8; // Balancer Vault address on Arbitrum
+    bytes32 public constant poolId =
+        0x64541216bafffeec8ea535bb71fbc927831d0595000100000000000000000002; // Pool Id of WBTC/WETH/USDC Balancer Pool on Arbitrum
+
+    address public constant WBTC = 0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f; // WBTC on Arbitrum
+    address public constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1; // WETH on Arbitrum
+    address public constant USDC = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8; // USDC on Arbitrum
 
     // Used to signal to the Badger Tree that rewards where sent to it
     event TreeDistribution(
@@ -64,7 +75,7 @@ contract MyStrategy is BaseStrategy {
 
     // @dev Specify the name of the strategy
     function getName() external pure override returns (string memory) {
-        return "StrategyName";
+        return "Arbitrum-Balancer-WBTC-WETH-USDC-Strategy";
     }
 
     // @dev Specify the version of the Strategy, for upgrades
@@ -74,12 +85,13 @@ contract MyStrategy is BaseStrategy {
 
     /// @dev Balance of want currently held in strategy positions
     function balanceOfPool() public view override returns (uint256) {
-        return 0;
+        return IERC20Upgradeable(lpComponent).balanceOf(address(this));
     }
 
     /// @dev Returns true if this strategy requires tending
     function isTendable() public view override returns (bool) {
-        return true;
+        // Checks balance of want token (WBTC) and returns true if balance of want > 0
+        return balanceOfWant() > 0;
     }
 
     // @dev These are the tokens that cannot be moved except by the vault
@@ -119,10 +131,63 @@ contract MyStrategy is BaseStrategy {
     /// @dev invest the amount of want
     /// @notice When this function is called, the controller has already sent want to this
     /// @notice Just get the current balance and then invest accordingly
-    function _deposit(uint256 _amount) internal override {}
+    function _deposit(uint256 _amount) internal override {
+        IAsset[] memory assets = new IAsset[](3);
+        assets[0] = IAsset(WBTC);
+        assets[1] = IAsset(WETH);
+        assets[2] = IAsset(USDC);
+
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = _amount;
+        amounts[1] = 0;
+        amounts[2] = 0;
+
+        bytes memory userData = abi.encode(uint256(1), amounts); // Here 1 is the id for "EXACT_TOKENS_IN_FOR_BPT_OUT"
+
+        IVault.JoinPoolRequest memory request =
+            IVault.JoinPoolRequest(assets, amounts, userData, false);
+
+        IVault(VAULT).joinPool(poolId, address(this), address(this), request);
+
+        totalDepositedinPool.add(_amount);
+    }
+
+    function _exitPosition(uint256 _wbtcAmountOut, uint256 _bptAmountIn)
+        internal
+    {
+        IAsset[] memory assets = new IAsset[](3);
+        assets[0] = IAsset(WBTC);
+        assets[1] = IAsset(WETH);
+        assets[2] = IAsset(USDC);
+
+        uint256 bptAmountIn = balanceOfPool();
+
+        uint256[] memory minAmountsOut = new uint256[](3); // minAmountsOut
+        minAmountsOut[0] = _wbtcAmountOut;
+        minAmountsOut[1] = 0;
+        minAmountsOut[2] = 0;
+
+        uint256 exitTokenIndex = 0; // As wbtc is the token we want to exit with therefore exitTokenIndex = 0
+
+        bytes memory userData =
+            abi.encode(uint256(0), _bptAmountIn, exitTokenIndex); // Here 0: EXACT_BPT_IN_FOR_ONE_TOKEN_OUT
+
+        IVault.ExitPoolRequest memory request =
+            IVault.ExitPoolRequest(assets, minAmountsOut, userData, false);
+
+        IVault(VAULT).exitPool(
+            poolId,
+            address(this),
+            payable(address(this)),
+            request
+        );
+    }
 
     /// @dev utility function to withdraw everything for migration
-    function _withdrawAll() internal override {}
+    function _withdrawAll() internal override {
+        _exitPosition(totalDepositedinPool, balanceOfPool());
+        totalDepositedinPool = 0;
+    }
 
     /// @dev withdraw the specified amount of want, liquidate from lpComponent to want, paying off any necessary debt for the conversion
     function _withdrawSome(uint256 _amount)
@@ -130,7 +195,13 @@ contract MyStrategy is BaseStrategy {
         override
         returns (uint256)
     {
-        return _amount;
+        if (_amount > totalDepositedinPool) {
+            _amount = totalDepositedinPool;
+        }
+        uint256 percentageOfWbtcWithdrawn =
+            _amount.mul(100).div(totalDepositedinPool);
+        _exitPosition(_amount, balanceOfPool() * percentageOfWbtcWithdrawn);
+        totalDepositedinPool = totalDepositedinPool.sub(_amount);
     }
 
     /// @dev Harvest from strategy mechanics, realizing increase in underlying position
