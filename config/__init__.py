@@ -5,7 +5,7 @@ BADGER_DEV_MULTISIG = "0xb65cef03b9b89f99517643226d76e286ee999e77"
 
 WANT = "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f"  ## WBTC on Arbitrum
 LP_COMPONENT = "0x64541216bafffeec8ea535bb71fbc927831d0595"  ## lp-token that balancer gives https://arbiscan.io/address/0x64541216bafffeec8ea535bb71fbc927831d0595
-REWARD_TOKEN = "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"  ## BAL Token on Arbitrum
+REWARD_TOKEN = "0x040d1edc9569d4bab2d15287dc5a4f10f56a56b8"  ## BAL Token on Arbitrum
 
 PROTECTED_TOKENS = [WANT, LP_COMPONENT, REWARD_TOKEN]
 ## Fees in Basis Points
