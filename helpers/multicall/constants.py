@@ -10,6 +10,8 @@ class Network(IntEnum):
     xDai = 100
     Forknet = 1337
     BSC = 56
+    Arbitrum = 42161
+    Hardhat = 31337
 
 
 MULTICALL_ADDRESSES = {
@@ -20,4 +22,6 @@ MULTICALL_ADDRESSES = {
     Network.xDai: "0xb5b692a88BDFc81ca69dcB1d924f59f0413A602a",
     Network.Forknet: "0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441",
     Network.BSC: "0xec8c00da6ce45341fb8c31653b598ca0d8251804",
+    Network.Arbitrum: "0x7A7443F8c577d537f1d8cD4a629d40a3148Dd7ee",
+    Network.Hardhat: "0x7A7443F8c577d537f1d8cD4a629d40a3148Dd7ee",
 }
