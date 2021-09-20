@@ -1,3 +1,6 @@
+# Arbitrum Balancer WBTC/WETH/USDC Strategy
+![arbitrum-balancer](https://user-images.githubusercontent.com/31198893/133967007-f83b886a-5b17-4a4a-ab21-0006a430d1c1.jpg)
+
 # Badger Strategy V1 Brownie Mix
 
 - Video Introduction: https://youtu.be/FVbhgPYW_D0
